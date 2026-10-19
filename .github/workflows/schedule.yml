@@ -1,0 +1,57 @@
+name: Scheduled endpoint request
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: scheduled-endpoint
+  cancel-in-progress: false
+
+jobs:
+  request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    env:
+      TARGET_URL: ${{ secrets.SCHEDULER_URL }}
+      ACCESS_TOKEN: ${{ secrets.SCHEDULER_TOKEN }}
+    steps:
+      - name: Validate configuration
+        shell: bash
+        run: |
+          node <<'NODE'
+          try {
+            const url = new URL(process.env.TARGET_URL);
+            const token = process.env.ACCESS_TOKEN;
+            if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash || !token || token.length < 32 || /\s/.test(token)) throw new Error();
+          } catch {
+            console.error('Endpoint configuration is unavailable.');
+            process.exit(1);
+          }
+          NODE
+
+      - name: Request endpoint
+        shell: bash
+        run: |
+          response="$RUNNER_TEMP/endpoint-response.json"
+          trap 'rm -f "$response"' EXIT
+          if ! curl --fail --silent --max-time 60 --proto '=https' \
+            -H "Authorization: Bearer ${ACCESS_TOKEN}" \
+            --output "$response" "$TARGET_URL"; then
+            echo 'Endpoint request failed.'
+            exit 1
+          fi
+          node - "$response" <<'NODE'
+          try {
+            const fs = require('node:fs');
+            const result = JSON.parse(fs.readFileSync(process.argv[2], 'utf8'));
+            if (!result || result.ok !== true) throw new Error();
+          } catch {
+            console.error('Endpoint health check failed.');
+            process.exit(1);
+          }
+          console.log('Endpoint check passed.');
+          NODE
