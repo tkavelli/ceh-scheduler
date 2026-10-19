@@ -2,7 +2,7 @@ name: Scheduled endpoint request
 
 on:
   schedule:
-    - cron: "*/15 * * * *"
+    - cron: "13,28,43,58 * * * *"
   workflow_dispatch:
 
 permissions: {}

@@ -1,6 +1,8 @@
 # Scheduled endpoint request
 
 Minimal infrastructure for periodically requesting a private HTTPS endpoint.
+The schedule runs at minutes 13, 28, 43 and 58: a 15-minute interval, staggered
+away from common round-minute schedules.
 This repository contains scheduling configuration only, with no application
 source, business logic, operational data or credentials.
 
